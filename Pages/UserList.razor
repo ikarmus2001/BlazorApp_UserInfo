@@ -1,0 +1,50 @@
+﻿@page "/userList"
+@using BlazorApp_UserInfo.Data.Model;
+@using Microsoft.EntityFrameworkCore;
+@inject AppDbContext _context
+@inject NavigationManager navi
+
+<PageTitle>Users</PageTitle>
+
+<h1>Registered users</h1>
+
+@if (_users != null)
+{
+    @if (_users.Count > 1)
+        @foreach (AppUser user in _users)
+        {
+            <p>@user.Name</p>
+            <p>@user.Surname</p>
+            <p>@user.Gender</p>
+            <p>@user.Birthdate</p>
+        }
+    else
+    {
+        <p>Database is empty! Define users with button below</p>
+    }
+}
+else
+{
+    <p>Loading...</p>
+}
+
+<button @onclick="AddNewUser_BtnClicked">
+    Add new user
+</button>
+
+
+@code {
+
+    private List<AppUser> _users = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await _context.Users.ToListAsync();
+    }
+
+    private void AddNewUser_BtnClicked()
+    {
+        var url = "/modifyUser/0";
+        navi.NavigateTo(url);
+    }
+}

@@ -1,0 +1,66 @@
+﻿@page "/modifyUser/{UserId:int}"
+@using BlazorApp_UserInfo.Data.Model;
+@inject AppDbContext _context
+
+
+<form>
+    <p>
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="@appUser.Name" />
+    </p>
+    <p>
+        <label for="surname">Surname</label>
+        <input type="text" id="surname" name="surname" value="@appUser.Surname" />
+    </p>
+    <p>
+        <label for="gender">Gender</label>
+    </p>
+    
+    <button type="submit" @onsubmit="AcceptChanges">Accept changes</button>
+    
+
+</form>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    public AppUser appUser { get; set; } 
+
+    protected override void OnInitialized()
+    {
+        if (UserId == 0)
+            AddNewUser();
+        else
+        {
+            EditExistingUser(UserId);
+        }
+
+    }
+
+    private void AddNewUser()
+    {
+        appUser = new AppUser();
+    }
+
+    private void EditExistingUser(int userId)
+    {
+        var userToEdit = _context.Users.Find(userId);
+        if (userToEdit == null)
+        {
+
+        }
+    }
+
+    private void AcceptChanges()
+    {
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<AppUser> x;
+        if (UserId == 0)
+            x = _context.Users.Add(appUser);
+        else
+            x = _context.Users.Update(appUser);
+
+        UserId = x.CurrentValues.GetValue<int>("Id");
+        // appUser = x.
+    }
+}
