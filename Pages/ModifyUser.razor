@@ -1,41 +1,130 @@
 ﻿@page "/modifyUser/{UserId:int}"
 @using BlazorApp_UserInfo.Data.Model;
+@using BlazorApp_UserInfo.Data.Transient;
 @inject AppDbContext _context
+@inject NavigationManager navi
 
 
-<form>
-    <p>
-        <label for="name">Name</label>
-        <input type="text" id="name" name="name" value="@appUser.Name" />
-    </p>
-    <p>
-        <label for="surname">Surname</label>
-        <input type="text" id="surname" name="surname" value="@appUser.Surname" />
-    </p>
-    <p>
-        <label for="gender">Gender</label>
-    </p>
-    
-    <button type="submit" @onsubmit="AcceptChanges">Accept changes</button>
-    
 
-</form>
+<h1>Basic info</h1>
+<div style="margin: 20px">
+    <EditForm Model=@appUser OnSubmit=@AcceptChanges>
+        
+        <p>
+            <label for="name_input">Name</label>
+            <InputText id="name_input" @bind-Value=appUser.Name />
+        </p>
+        <p>
+            <label for="surname_input">Surname</label>
+            <InputText id="surname_input" @bind-Value=appUser.Surname />
+        </p>
+        <p>
+            <label for="gender_input">Gender</label>
+            <InputText id="gender_input" @bind-Value=appUser.Gender />
+        </p>
+        <p>
+            <label for="birthdate_input">Date of birth</label>
+            <InputDate id="birthdate_input" @bind-Value=appUser.Birthdate />
+        </p>
+
+        <input type="submit" value="Save" />
+    </EditForm>
+</div>
+
+
+<p style="display: flex">
+    <h2>Custom info</h2>
+    <button @onclick="@(() => ToggleShowAddPropertiesForm())" style="margin-left: 15px">
+        <BlazorApp_UserInfo.CustomComponents.SvgComp height="40" width="40">
+            <BlazorApp_UserInfo.wwwroot.icons.Material_plus_icon />
+        </BlazorApp_UserInfo.CustomComponents.SvgComp>
+    </button>
+</p>
+<div style="margin: 20px">
+    @if (IsVisible_AddPropertyForm)
+    {
+        <div style="margin: 10px">
+            <EditForm Model=@newProperty OnSubmit=@AcceptProperty>
+                <p>
+                    <label for="newProp_nameinput">Name</label>
+                    @if (!IsChecked_AddNewProperty)
+                    {
+                        <InputSelect id="newProp_valueinput" @bind-Value=newProperty.Name>
+
+                            <option value="">Select value or create new</option>
+                            @foreach (CustomProperty prop in DefinedProperties.Where(dp => !_customInfo.Any(ci => ci.PropertyId == dp.Id)))
+                            {
+                                <option value="@prop.Id">@prop.Name</option>
+                            }
+                        </InputSelect>
+                    }
+                    else
+                    {
+                        <InputText id="newProp_nameinput" @bind-Value=newProperty.Name />
+                    }
+
+                    <InputCheckbox style="margin-left: 20px" @bind-Value=IsChecked_AddNewProperty />
+                    <label>Add new property</label>
+                </p>
+                <p>
+                    <label for="newProp_valueinput">Value</label>
+                    @if (!IsChecked_AddNewProperty)
+                    {
+                        <InputText id="newProp_valueinput" @bind-Value=AddProperty_Selected_Value />
+                    }
+                    else
+                    {
+                        <InputText id="newProp_valueinput" @bind-Value=newProperty.Value />
+                    }
+
+                </p>
+                <input type="submit" value="Add property" />
+            </EditForm>
+        </div>
+    }
+
+
+    @if (_customInfo.Count > 0)
+    {
+        @foreach (UserProp info in _customInfo)
+        {
+            <div style="border-style:solid">
+                <label>@info.Name</label>
+                <InputText @bind-Value=@info.Value />
+            </div>
+        }
+    }
+</div>
+
+
+
 
 @code {
     [Parameter]
     public int UserId { get; set; }
 
-    public AppUser appUser { get; set; } 
+    public AppUser appUser;
+    public List<CustomProperty> DefinedProperties;
+    public List<UserProp> _customInfo = new();
+
+    public string? AddProperty_Selected_Value { get; set; }
+
+    public UserProp newProperty = new();
+
+    public bool IsVisible_AddPropertyForm = false;
+    public bool IsChecked_AddNewProperty = false;
+
 
     protected override void OnInitialized()
     {
+        
         if (UserId == 0)
             AddNewUser();
         else
         {
             EditExistingUser(UserId);
+            GetAllProperties();
         }
-
     }
 
     private void AddNewUser()
@@ -43,24 +132,109 @@
         appUser = new AppUser();
     }
 
-    private void EditExistingUser(int userId)
+    private async void EditExistingUser(int userId)
     {
-        var userToEdit = _context.Users.Find(userId);
+        AppUser? userToEdit = _context.Users.Find(userId);
         if (userToEdit == null)
         {
-
+            navi.NavigateTo("/userList/NotFound");
+        }
+        else
+        {
+            appUser = userToEdit;
+            GetUserProperties();
         }
     }
 
-    private void AcceptChanges()
+    private void ToggleShowAddPropertiesForm()
     {
-        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<AppUser> x;
-        if (UserId == 0)
-            x = _context.Users.Add(appUser);
-        else
-            x = _context.Users.Update(appUser);
+        if (appUser.Id == null)
+            return;
 
-        UserId = x.CurrentValues.GetValue<int>("Id");
-        // appUser = x.
+        newProperty.UserId = (int)appUser.Id;
+        IsVisible_AddPropertyForm = !IsVisible_AddPropertyForm;
+    }
+
+    private void GetAllProperties()
+    {
+        DefinedProperties = _context.CustomProperties.ToList();
+    }
+
+    private void GetUserProperties()
+    {
+        var userPropertiesQuery = from uProps in _context.UserProperties
+                                  where UserId == uProps.UserId
+                                  join names in _context.CustomProperties on uProps.PropertyId equals names.Id
+                                  select new UserProp()
+                                      { Name = names.Name, Value = uProps.Value, UserId = uProps.UserId, PropertyId = uProps.PropertyId };
+
+        _customInfo = userPropertiesQuery.ToList();
+        try
+        {
+            var x = _customInfo.Where(ci => ci.PropertyId == newProperty.PropertyId).FirstOrDefault();
+            if (x != null)
+                AddProperty_Selected_Value = x.Value;
+            else
+                throw new Exception();
+        }
+        catch (Exception)
+        {
+            AddProperty_Selected_Value = "";
+        }
+
+    }
+
+    private async void AcceptChanges(EditContext editContext)
+    {
+        if (!editContext.Validate())
+        {
+            // msg
+            return;
+        }
+
+        Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<AppUser> dbTrack;
+
+        if (UserId == 0)
+        {
+            dbTrack = _context.Users.Add(appUser);
+        }
+        else
+            dbTrack = _context.Users.Update(appUser);
+
+        if (await _context.SaveChangesAsync() > 0)
+        {
+            navi.NavigateTo("/userList");
+        }
+    }
+
+    private void AcceptProperty(EditContext editContext)
+    {
+        if (IsChecked_AddNewProperty)
+        {
+            if (_context.CustomProperties.Where(cp => cp.Name == newProperty.Name).ToList().Count > 0)
+            {
+                // Such property already exist, inform user about this fact
+                // Ask about adding value to existing property, otherwise ask for changing name
+                return;
+            }
+
+            if (newProperty.Value.Length < 3)
+            {
+                // Can't create with < 3 chars
+                return;
+            }
+
+            CustomProperty newProp = new() { Name = newProperty.Name };
+            _context.CustomProperties.Add(newProp);
+            _context.SaveChanges();
+
+            var newId = (int)_context.CustomProperties.Where(cp => cp.Name == newProperty.Name).FirstOrDefault().Id;
+            newProperty.PropertyId = newId;
+
+            _context.UserProperties.Add(newProperty.ToUserProperty());
+            _context.SaveChanges();
+
+            GetAllProperties();
+        }
     }
 }

@@ -1,10 +1,18 @@
-﻿@page "/userList"
+﻿@page "/"
+@page "/userList"
+@page "/userList/{error}"
 @using BlazorApp_UserInfo.Data.Model;
 @using Microsoft.EntityFrameworkCore;
 @inject AppDbContext _context
 @inject NavigationManager navi
 
 <PageTitle>Users</PageTitle>
+
+@if (IsError)
+{
+    <label>@errorMsg</label>
+}
+
 
 <h1>Registered users</h1>
 
@@ -13,10 +21,20 @@
     @if (_users.Count > 1)
         @foreach (AppUser user in _users)
         {
-            <p>@user.Name</p>
-            <p>@user.Surname</p>
-            <p>@user.Gender</p>
-            <p>@user.Birthdate</p>
+
+            <div class="bordered-item">    
+                @user.Name
+                @user.Surname
+                @user.Gender
+                @user.Birthdate.ToShortDateString()
+
+                <button @onclick="@(() => EditUser_BtnClicked(user.Id))">Edit</button>
+
+                @* <NavLink href="@($"/modifyUser/{user.Id}")">
+    <button >Edit2</button>
+    </NavLink> *@
+            </div>
+
         }
     else
     {
@@ -28,12 +46,32 @@ else
     <p>Loading...</p>
 }
 
-<button @onclick="AddNewUser_BtnClicked">
+<button @onclick="AddNewUser_BtnClicked" style="margin-top:10px">
     Add new user
 </button>
 
+<p>
+    <textar>
+        As far as I am concerned, the Blazor form will be safe from CSRF attacks, because the form is generating unique form tag, which prevents submiting it from another client.
+    </textar>
+    <a href="https://learn.microsoft.com/en-us/aspnet/core/mvc/views/working-with-forms?view=aspnetcore-7.0#the-form-tag-helper">Source</a>
+</p>
 
 @code {
+    [Parameter]
+    public string? error { get; set; }
+    public bool IsError => !string.IsNullOrEmpty(error);
+
+    public string errorMsg
+    {
+        get
+        {
+            if (error == "NotFound")
+                return "User not found!";
+            else
+                return "Unknown error!";
+        }
+    }
 
     private List<AppUser> _users = default!;
 
@@ -45,6 +83,12 @@ else
     private void AddNewUser_BtnClicked()
     {
         var url = "/modifyUser/0";
+        navi.NavigateTo(url);
+    }
+
+    private void EditUser_BtnClicked(int? UserId)
+    {
+        var url = "/modifyUser/" + UserId;
         navi.NavigateTo(url);
     }
 }

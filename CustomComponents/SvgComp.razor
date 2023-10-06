@@ -1,0 +1,17 @@
+﻿<svg width=@width height=@height>
+    @ChildContent
+</svg>
+
+@code {
+
+    // Took from https://stackoverflow.com/a/60787289/14345698
+
+    [Parameter]
+    public string width { get; set; }
+
+    [Parameter]
+    public string height { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+}
