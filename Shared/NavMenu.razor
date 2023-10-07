@@ -1,6 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject IJSRuntime JS
+@inject AppDbContext _context
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">BlazorApp_UserInfo</a>
+        <a class="navbar-brand" href="">Logo</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -14,8 +17,27 @@
                 <span class="oi oi-list-rich" aria-hidden="true"></span> User List
             </NavLink>
         </div>
+        <div>
+            <button @onclick="GenerateReport">
+                <span class="oi oi-person" aria-hidden="true" /> Generate report
+            </button>
+        </div>
     </nav>
 </div>
+
+<script>
+    window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+        const arrayBuffer = await contentStreamReference.arrayBuffer();
+        const blob = new Blob([arrayBuffer]);
+        const url = URL.createObjectURL(blob);
+        const anchorElement = document.createElement('a');
+        anchorElement.href = url;
+        anchorElement.download = fileName ?? '';
+        anchorElement.click();
+        anchorElement.remove();
+        URL.revokeObjectURL(url);
+    }
+</script>
 
 @code {
     private bool collapseNavMenu = true;
@@ -25,5 +47,12 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task GenerateReport()
+    {
+        var stream = new DotNetStreamReference(new ReportController(_context).GenerateReport());
+        string fName = $"{DateTime.Now}.csv";
+        await JS.InvokeVoidAsync("downloadFileFromStream", fName, stream);
     }
 }

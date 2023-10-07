@@ -1,5 +1,6 @@
 using BlazorApp_UserInfo.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.JSInterop;
 
 namespace BlazorApp_UserInfo
 {

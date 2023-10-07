@@ -49,7 +49,7 @@
                     <label for="newProp_nameinput">Name</label>
                     @if (!IsChecked_AddNewProperty)
                     {
-                        <InputSelect id="newProp_valueinput" @bind-Value=newProperty.Name>
+                        <InputSelect id="newProp_valueinput" @bind-Value=newProperty.PropertyId>
 
                             <option value="">Select value or create new</option>
                             @foreach (CustomProperty prop in DefinedProperties.Where(dp => !_customInfo.Any(ci => ci.PropertyId == dp.Id)))
@@ -90,7 +90,7 @@
         {
             <div style="border-style:solid">
                 <label>@info.Name</label>
-                <InputText @bind-Value=@info.Value />
+                <InputText id="propInput" @bind-Value=@info.Value @onkeyup='@(e => ExistingProperty_KeyUp(e, info.PropertyId))' />
             </div>
         }
     }
@@ -117,33 +117,26 @@
 
     protected override void OnInitialized()
     {
-        
-        if (UserId == 0)
-            AddNewUser();
-        else
+
+        if (UserId != 0)
         {
             EditExistingUser(UserId);
             GetAllProperties();
         }
-    }
-
-    private void AddNewUser()
-    {
-        appUser = new AppUser();
+        else
+            appUser = new AppUser();
     }
 
     private async void EditExistingUser(int userId)
     {
         AppUser? userToEdit = _context.Users.Find(userId);
-        if (userToEdit == null)
-        {
-            navi.NavigateTo("/userList/NotFound");
-        }
-        else
+        if (userToEdit != null)
         {
             appUser = userToEdit;
             GetUserProperties();
         }
+        else
+            navi.NavigateTo("/userList/NotFound");
     }
 
     private void ToggleShowAddPropertiesForm()
@@ -235,6 +228,44 @@
             _context.SaveChanges();
 
             GetAllProperties();
+
+        }
+        else
+        {
+            if (AddProperty_Selected_Value.Length < 3)
+            {
+                // Can't create with < 3 chars
+                return;
+            }
+            _context.UserProperties.Add(new UserProperties() { UserId = UserId, Value = AddProperty_Selected_Value, PropertyId = newProperty.PropertyId });
+            _context.SaveChanges();
+
+            GetAllProperties();
+        }
+        navi.NavigateTo(navi.Uri, forceLoad: true);
+    }
+
+    public void ExistingProperty_KeyUp(KeyboardEventArgs e, int propertyId)
+    {
+        if (e.Code != "Enter")
+            return;
+
+        var prop = _context.UserProperties
+                        .Where(up => up.PropertyId == propertyId)
+                        .Where(up => up.UserId == UserId).FirstOrDefault();
+        if (prop != null)
+        {
+            var newPropertyValue = _customInfo.Where(ci => ci.PropertyId == propertyId).FirstOrDefault().Value;
+            if (string.IsNullOrEmpty(newPropertyValue))
+                _context.UserProperties.Remove(prop);
+            else
+            {
+                prop.Value = newPropertyValue;
+                _context.UserProperties.Update(prop);
+            }
+
+            _context.SaveChanges();
+            navi.NavigateTo(navi.Uri, forceLoad: true);
         }
     }
 }
